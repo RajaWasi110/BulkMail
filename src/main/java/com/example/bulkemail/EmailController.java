@@ -5,6 +5,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -25,6 +26,13 @@ public class EmailController {
         return "index"; // Thymeleaf template
     }
 
+    // Simple health check for Railway
+    @GetMapping("/health")
+    @ResponseBody
+    public String health() {
+        return "BulkMail is live!";
+    }
+
     @PostMapping("/send")
     public String sendEmails(
             @RequestParam String subject,
@@ -34,10 +42,10 @@ public class EmailController {
             Model model) {
 
         try {
-            // Call the correct method in EmailService
+            // Send emails and get failed recipients
             List<String> failed = emailService.sendEmails(subject, body, recipientsManual, recipientsFile);
 
-            // Calculate total recipients
+            // Count total recipients
             int totalRecipients = 0;
             if (recipientsManual != null && !recipientsManual.isEmpty()) {
                 totalRecipients += recipientsManual.split("[,;\\n]+").length;

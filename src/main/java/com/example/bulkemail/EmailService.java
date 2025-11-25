@@ -22,7 +22,7 @@ public class EmailService {
     public List<String> sendEmails(String subject, String body, String manualRecipients, MultipartFile file) {
         List<String> allRecipients = new ArrayList<>();
 
-        // Manual recipients
+        // Add manual recipients
         if (manualRecipients != null && !manualRecipients.isEmpty()) {
             String[] split = manualRecipients.split("[,;\\n]+");
             for (String s : split) {
@@ -30,7 +30,7 @@ public class EmailService {
             }
         }
 
-        // File-based recipients
+        // Add recipients from file
         if (file != null && !file.isEmpty()) {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
                 String line;
@@ -38,7 +38,7 @@ public class EmailService {
                     if (!line.trim().isEmpty()) allRecipients.add(line.trim());
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Failed to read uploaded file: " + e.getMessage());
+                throw new RuntimeException("Failed to read uploaded file: " + e.getMessage(), e);
             }
         }
 
@@ -48,7 +48,7 @@ public class EmailService {
 
         List<String> failedRecipients = new ArrayList<>();
 
-        // Convert body newlines to HTML <br>
+        // Convert newlines to HTML <br>
         String formattedBody = body.replace("\n", "<br>");
 
         try {
@@ -59,12 +59,13 @@ public class EmailService {
             props.put("mail.smtp.port", SMTP_PORT);
 
             Session session = Session.getInstance(props, new Authenticator() {
+                @Override
                 protected PasswordAuthentication getPasswordAuthentication() {
                     return new PasswordAuthentication(SMTP_USER, SMTP_PASS);
                 }
             });
 
-            // Send emails individually to track failures
+            // Send emails individually to handle failures
             for (String recipient : allRecipients) {
                 try {
                     MimeMessage message = new MimeMessage(session);
@@ -74,15 +75,17 @@ public class EmailService {
                     message.setContent(formattedBody, "text/html; charset=utf-8");
 
                     Transport.send(message);
-                    Thread.sleep(200); // small delay between emails
+
+                    Thread.sleep(200); // small delay between emails to prevent throttling
 
                 } catch (Exception e) {
+                    // Log failure for this recipient
                     failedRecipients.add(recipient);
                 }
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to send emails: " + e.getMessage());
+            throw new RuntimeException("Failed to send emails: " + e.getMessage(), e);
         }
 
         return failedRecipients;
